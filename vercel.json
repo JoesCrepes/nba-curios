@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd projects/nba-season-trajectories && npm install && npm run build",
+  "outputDirectory": "projects/nba-season-trajectories/dist",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}

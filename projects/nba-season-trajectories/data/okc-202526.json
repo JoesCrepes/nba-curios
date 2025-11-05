@@ -1,0 +1,99 @@
+{
+  "team": "OKC",
+  "season": "2025-26",
+  "label": "Current Thunder",
+  "description": "Current season (live data)",
+  "is_current": true,
+  "fetched_at": "2025-11-05T12:03:54.943465",
+  "games": [
+    {
+      "game_num": 1,
+      "date": "2025-10-21",
+      "matchup": "OKC vs. HOU",
+      "wl": "W",
+      "wins": 1,
+      "losses": 0,
+      "pts_for": 125,
+      "pts_against": 125,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 2,
+      "date": "2025-10-23",
+      "matchup": "OKC @ IND",
+      "wl": "W",
+      "wins": 2,
+      "losses": 0,
+      "pts_for": 141,
+      "pts_against": 141,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 3,
+      "date": "2025-10-25",
+      "matchup": "OKC @ ATL",
+      "wl": "W",
+      "wins": 3,
+      "losses": 0,
+      "pts_for": 117,
+      "pts_against": 117,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 4,
+      "date": "2025-10-27",
+      "matchup": "OKC @ DAL",
+      "wl": "W",
+      "wins": 4,
+      "losses": 0,
+      "pts_for": 101,
+      "pts_against": 101,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 5,
+      "date": "2025-10-28",
+      "matchup": "OKC vs. SAC",
+      "wl": "W",
+      "wins": 5,
+      "losses": 0,
+      "pts_for": 107,
+      "pts_against": 107,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 6,
+      "date": "2025-10-30",
+      "matchup": "OKC vs. WAS",
+      "wl": "W",
+      "wins": 6,
+      "losses": 0,
+      "pts_for": 127,
+      "pts_against": 127,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 7,
+      "date": "2025-11-02",
+      "matchup": "OKC vs. NOP",
+      "wl": "W",
+      "wins": 7,
+      "losses": 0,
+      "pts_for": 137,
+      "pts_against": 137,
+      "win_pct": 1.0
+    },
+    {
+      "game_num": 8,
+      "date": "2025-11-04",
+      "matchup": "OKC @ LAC",
+      "wl": "W",
+      "wins": 8,
+      "losses": 0,
+      "pts_for": 126,
+      "pts_against": 126,
+      "win_pct": 1.0
+    }
+  ],
+  "final_record": "8-0"
+}

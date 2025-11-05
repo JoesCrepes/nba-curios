@@ -1,0 +1,51 @@
+name: Update NBA Season Data
+
+on:
+  schedule:
+    # Run daily at 8 AM ET (12 PM UTC)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          cd projects/nba-season-trajectories/scripts
+          pip install -r requirements.txt
+
+      - name: Fetch current season data
+        run: |
+          cd projects/nba-season-trajectories/scripts
+          python fetch_data.py --current-only
+
+      - name: Copy data to public directory
+        run: |
+          cd projects/nba-season-trajectories
+          cp -r data/* public/data/
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git diff --quiet projects/nba-season-trajectories/data/ || echo "changes=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add projects/nba-season-trajectories/data/
+          git add projects/nba-season-trajectories/public/data/
+          git commit -m "Update current season data - $(date +'%Y-%m-%d')"
+          git push

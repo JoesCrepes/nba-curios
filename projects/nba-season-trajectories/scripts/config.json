@@ -1,0 +1,33 @@
+{
+  "seasons": [
+    {
+      "team_abbr": "GSW",
+      "season": "2015-16",
+      "team_id": "1610612744",
+      "label": "73-Win Warriors",
+      "description": "Historic 73-9 regular season"
+    },
+    {
+      "team_abbr": "CHI",
+      "season": "1995-96",
+      "team_id": "1610612741",
+      "label": "72-Win Bulls",
+      "description": "Michael Jordan's return season"
+    },
+    {
+      "team_abbr": "OKC",
+      "season": "2012-13",
+      "team_id": "1610612760",
+      "label": "KD/Westbrook/Harden Thunder",
+      "description": "60-22 record, projected for 68 wins"
+    },
+    {
+      "team_abbr": "OKC",
+      "season": "2025-26",
+      "team_id": "1610612760",
+      "label": "Current Thunder",
+      "description": "Current season (live data)",
+      "is_current": true
+    }
+  ]
+}
