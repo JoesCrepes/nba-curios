@@ -30,7 +30,8 @@ function App() {
 
         const loadedSeasons = await Promise.all(
           seasonFiles.map(async ({ file, key }) => {
-            const response = await fetch(`/data/${file}`);
+            // Use relative path to work with GitHub Pages base path
+            const response = await fetch(`./data/${file}`);
             const data: SeasonData = await response.json();
             return { ...data, key };
           })
