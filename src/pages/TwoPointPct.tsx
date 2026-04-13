@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import type { PlayerSeason, DataFile } from '../types'
+import type { PlayerSeason } from '../types'
 import {
-  parseQuery,
-  applyQuery,
-  fmtStat,
-  describeQuery,
-  STAT_DEFS,
-  type StatKey,
-  type PositionFilter,
+  parseQuery, applyQuery, fmtStat, describeQuery,
+  STAT_DEFS, type StatKey, type PositionFilter,
 } from '../utils/queryParser'
+import {
+  ALL_SEASONS, CURRENT_SEASON,
+  loadSeason, loadSeasonsConcurrent,
+  getAllCached,
+} from '../utils/seasonLoader'
 import './TwoPointPct.css'
 
 const EXAMPLE_QUERIES = [
@@ -29,131 +29,158 @@ const POSITION_OPTIONS: Array<{ value: PositionFilter; label: string }> = [
 ]
 
 const SEASON_OPTIONS = [
-  { value: '',        label: 'All seasons' },
-  { value: '2024-25', label: '2024-25' },
-  { value: '2023-24', label: '2023-24' },
-  { value: '2022-23', label: '2022-23' },
-  { value: '2021-22', label: '2021-22' },
-  { value: '2020-21', label: '2020-21' },
-  { value: '2019-20', label: '2019-20' },
-  { value: '2018-19', label: '2018-19' },
-  { value: '2017-18', label: '2017-18' },
-  { value: '2016-17', label: '2016-17' },
-  { value: '2015-16', label: '2015-16' },
-  { value: '2014-15', label: '2014-15' },
-  { value: '2013-14', label: '2013-14' },
-  { value: '2012-13', label: '2012-13' },
-  { value: '2011-12', label: '2011-12' },
-  { value: '2010-11', label: '2010-11' },
-  { value: '2009-10', label: '2009-10' },
-  { value: '2008-09', label: '2008-09' },
-  { value: '2007-08', label: '2007-08' },
-  { value: '2006-07', label: '2006-07' },
-  { value: '2005-06', label: '2005-06' },
-  { value: '2004-05', label: '2004-05' },
-  { value: '2003-04', label: '2003-04' },
-  { value: '2002-03', label: '2002-03' },
-  { value: '2001-02', label: '2001-02' },
-  { value: '2000-01', label: '2000-01' },
-  { value: '1999-00', label: '1999-00' },
-  { value: '1998-99', label: '1998-99' },
-  { value: '1997-98', label: '1997-98' },
-  { value: '1996-97', label: '1996-97' },
+  { value: '',            label: 'All time' },
+  ...ALL_SEASONS.map((s) => ({ value: s, label: s })),
 ]
 
 type SortState = { col: string; dir: 'asc' | 'desc' }
 
-export default function TwoPointPct() {
-  // ── Data loading ────────────────────────────────────────────────────────────
-  const [allData, setAllData] = useState<PlayerSeason[] | null>(null)
-  const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading')
-  const [meta, setMeta] = useState<DataFile['meta'] | null>(null)
+// ─── Load state ───────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    fetch('/data/player_seasons.json')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json() as Promise<DataFile>
-      })
-      .then((json) => {
-        setMeta(json.meta)
-        if (!json.data || json.data.length === 0) {
-          setDataStatus('empty')
-        } else {
-          setAllData(json.data)
-          setDataStatus('ready')
-        }
-      })
-      .catch(() => setDataStatus('error'))
+interface LoadState {
+  loaded: Set<string>   // seasons in cache
+  loading: Set<string>  // in-flight
+  errors: Set<string>   // failed
+  allTimeStarted: boolean
+}
+
+const emptyLoadState = (): LoadState => ({
+  loaded: new Set(), loading: new Set(), errors: new Set(), allTimeStarted: false,
+})
+
+export default function TwoPointPct() {
+  // ── Query state ─────────────────────────────────────────────────────────────
+  const [queryText,       setQueryText]       = useState('')
+  const [positionOverride, setPositionOverride] = useState<PositionFilter | null>(null)
+  const [seasonOverride,  setSeasonOverride]  = useState<string>(CURRENT_SEASON)
+  const [minAttempts,     setMinAttempts]     = useState<number | ''>('')
+  const [tableSort,       setTableSort]       = useState<SortState | null>(null)
+
+  // ── Load state ──────────────────────────────────────────────────────────────
+  const [loadState, setLoadState] = useState<LoadState>(emptyLoadState)
+
+  // Track whether the "all time" load has been kicked off this session
+  const allTimeRef = useRef(false)
+
+  // ── Derived ─────────────────────────────────────────────────────────────────
+  const parsed          = useMemo(() => parseQuery(queryText), [queryText])
+  const effectivePosition: PositionFilter = positionOverride ?? parsed.position
+  const effectiveSeason = seasonOverride  // '' = all time
+  const effectiveMin    = minAttempts !== '' ? minAttempts : STAT_DEFS[parsed.statKey].defaultMinAttempts
+  const def             = STAT_DEFS[parsed.statKey]
+
+  // ── Helpers to mutate load state ─────────────────────────────────────────────
+  const markLoading = useCallback((season: string) => {
+    setLoadState((s) => {
+      const loading = new Set(s.loading); loading.add(season)
+      return { ...s, loading }
+    })
   }, [])
 
-  // ── Query state ─────────────────────────────────────────────────────────────
-  const [queryText, setQueryText] = useState('')
-  const [positionOverride, setPositionOverride] = useState<PositionFilter | null>(null)
-  const [seasonOverride, setSeasonOverride] = useState<string>('')
-  const [minAttempts, setMinAttempts] = useState<number | ''>('')
-  const [tableSort, setTableSort] = useState<SortState | null>(null)
+  const markDone = useCallback((season: string, ok: boolean) => {
+    setLoadState((s) => {
+      const loading = new Set(s.loading); loading.delete(season)
+      const loaded  = new Set(s.loaded)
+      const errors  = new Set(s.errors)
+      if (ok) loaded.add(season); else errors.add(season)
+      return { ...s, loading, loaded, errors }
+    })
+  }, [])
 
-  const parsed = useMemo(() => parseQuery(queryText), [queryText])
+  // ── Initial load: always kick off the current season ─────────────────────────
+  useEffect(() => {
+    markLoading(CURRENT_SEASON)
+    loadSeason(CURRENT_SEASON)
+      .then(() => markDone(CURRENT_SEASON, true))
+      .catch(() => markDone(CURRENT_SEASON, false))
+  }, [markLoading, markDone])
 
-  // When the parsed position changes (from NL), sync the override pill
-  const effectivePosition: PositionFilter = positionOverride ?? parsed.position
+  // ── Season dropdown change ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (effectiveSeason === '' || loadState.loaded.has(effectiveSeason)) return
+    markLoading(effectiveSeason)
+    loadSeason(effectiveSeason)
+      .then(() => markDone(effectiveSeason, true))
+      .catch(() => markDone(effectiveSeason, false))
+  }, [effectiveSeason, loadState.loaded, markLoading, markDone])
 
-  const effectiveMin =
-    minAttempts !== '' ? minAttempts : STAT_DEFS[parsed.statKey].defaultMinAttempts
+  // ── "All time" progressive load ───────────────────────────────────────────────
+  const startAllTime = useCallback(() => {
+    if (allTimeRef.current) return
+    allTimeRef.current = true
+    setLoadState((s) => ({ ...s, allTimeStarted: true }))
 
-  // ── Results ─────────────────────────────────────────────────────────────────
-  const results = useMemo(() => {
-    if (!allData) return []
-    return applyQuery(allData, { ...parsed, position: effectivePosition }, effectiveMin, seasonOverride || null)
-  }, [allData, parsed, effectivePosition, effectiveMin, seasonOverride])
+    // Mark everything not yet loaded as "loading" immediately for UI
+    setLoadState((s) => {
+      const loading = new Set(s.loading)
+      ALL_SEASONS.forEach((season) => { if (!s.loaded.has(season)) loading.add(season) })
+      return { ...s, loading }
+    })
 
-  // Table-level secondary sort (clicking headers)
+    loadSeasonsConcurrent(
+      ALL_SEASONS,
+      (season, ok) => markDone(season, ok),
+      3, // max concurrent requests
+    )
+  }, [markDone])
+
+  // ── Flatten all cached data for querying ──────────────────────────────────────
+  // Re-runs whenever loadState.loaded changes (i.e. a new season arrives)
+  const allData = useMemo(() => {
+    if (effectiveSeason !== '') {
+      // Specific season: just that one
+      return (loadState.loaded.has(effectiveSeason) ? getAllCached().filter(p => p.season === effectiveSeason) : [])
+    }
+    return getAllCached()
+  }, [effectiveSeason, loadState.loaded])
+
+  // ── Filter + rank ─────────────────────────────────────────────────────────────
+  const results = useMemo(
+    () => applyQuery(allData, { ...parsed, position: effectivePosition }, effectiveMin, effectiveSeason || null),
+    [allData, parsed, effectivePosition, effectiveMin, effectiveSeason],
+  )
+
   const displayRows = useMemo(() => {
     if (!tableSort) return results.slice(0, 50)
-    const def = STAT_DEFS[parsed.statKey]
     return [...results].sort((a, b) => {
-      let va: number, vb: number
-      if (tableSort.col === 'stat') {
-        va = def.getValue(a); vb = def.getValue(b)
-      } else if (tableSort.col === 'gp') {
-        va = a.gp; vb = b.gp
-      } else {
-        return 0
-      }
+      const va = tableSort.col === 'stat' ? def.getValue(a) : a.gp
+      const vb = tableSort.col === 'stat' ? def.getValue(b) : b.gp
       return tableSort.dir === 'asc' ? va - vb : vb - va
     }).slice(0, 50)
-  }, [results, tableSort, parsed.statKey])
+  }, [results, tableSort, def])
 
-  const handleExample = useCallback((ex: string) => {
+  // ── Handlers ──────────────────────────────────────────────────────────────────
+  const handleExample = (ex: string) => {
     setQueryText(ex)
     setPositionOverride(null)
-    setSeasonOverride('')
-    setMinAttempts('')
     setTableSort(null)
-  }, [])
+  }
 
   const handlePositionClick = (pos: PositionFilter) => {
     setPositionOverride(pos === effectivePosition && positionOverride !== null ? null : pos)
     setTableSort(null)
   }
 
-  const toggleSort = (col: string) => {
-    setTableSort((prev) =>
-      prev?.col === col
-        ? { col, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
-        : { col, dir: 'desc' }
-    )
+  const handleSeasonChange = (val: string) => {
+    setSeasonOverride(val)
+    setTableSort(null)
+    if (val === '' && !allTimeRef.current) startAllTime()
   }
 
-  const def = STAT_DEFS[parsed.statKey]
   const interpretation = describeQuery(
     { ...parsed, position: effectivePosition },
     effectiveMin,
-    seasonOverride || null,
+    effectiveSeason || null,
   )
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Progress indicators ───────────────────────────────────────────────────────
+  const loadedCount  = loadState.loaded.size
+  const loadingCount = loadState.loading.size
+  const errorCount   = loadState.errors.size
+  const isAllTime    = effectiveSeason === ''
+  const isComplete   = isAllTime ? loadedCount === ALL_SEASONS.length : loadState.loaded.has(effectiveSeason)
+  const isLoading    = loadingCount > 0
+
   return (
     <div className="tool-page">
       <nav className="tool-nav">
@@ -162,9 +189,7 @@ export default function TwoPointPct() {
 
       <header className="tool-header">
         <h1>Two-Point % Explorer</h1>
-        <p className="tool-subtitle">
-          Find the best single-season shooters across the modern era
-        </p>
+        <p className="tool-subtitle">Find the best single-season shooters across NBA history</p>
       </header>
 
       {/* Query input */}
@@ -174,26 +199,17 @@ export default function TwoPointPct() {
             className="query-input"
             type="text"
             value={queryText}
-            onChange={(e) => {
-              setQueryText(e.target.value)
-              setPositionOverride(null)
-              setTableSort(null)
-            }}
+            onChange={(e) => { setQueryText(e.target.value); setPositionOverride(null); setTableSort(null) }}
             placeholder={'Ask a question\u2026 e.g. \u201chighest two-point percentage center ever\u201d'}
             spellCheck={false}
           />
           {queryText && (
-            <button className="query-clear" onClick={() => setQueryText('')} aria-label="Clear">
-              ×
-            </button>
+            <button className="query-clear" onClick={() => setQueryText('')} aria-label="Clear">×</button>
           )}
         </div>
-
         <div className="example-pills">
           {EXAMPLE_QUERIES.map((ex) => (
-            <button key={ex} className="example-pill" onClick={() => handleExample(ex)}>
-              {ex}
-            </button>
+            <button key={ex} className="example-pill" onClick={() => handleExample(ex)}>{ex}</button>
           ))}
         </div>
       </div>
@@ -208,9 +224,7 @@ export default function TwoPointPct() {
                 key={value}
                 className={`pill ${effectivePosition === value ? 'pill--active' : ''}`}
                 onClick={() => handlePositionClick(value)}
-              >
-                {label}
-              </button>
+              >{label}</button>
             ))}
           </div>
         </div>
@@ -220,12 +234,17 @@ export default function TwoPointPct() {
           <select
             className="season-select"
             value={seasonOverride}
-            onChange={(e) => { setSeasonOverride(e.target.value); setTableSort(null) }}
+            onChange={(e) => handleSeasonChange(e.target.value)}
           >
             {SEASON_OPTIONS.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          {!loadState.allTimeStarted && seasonOverride !== '' && (
+            <button className="all-time-btn" onClick={() => { setSeasonOverride(''); startAllTime() }}>
+              Load all time →
+            </button>
+          )}
         </div>
 
         <div className="control-group">
@@ -238,8 +257,7 @@ export default function TwoPointPct() {
             value={minAttempts}
             placeholder={String(def.defaultMinAttempts)}
             onChange={(e) => {
-              const v = e.target.value === '' ? '' : parseInt(e.target.value, 10)
-              setMinAttempts(v)
+              setMinAttempts(e.target.value === '' ? '' : parseInt(e.target.value, 10))
               setTableSort(null)
             }}
           />
@@ -253,70 +271,106 @@ export default function TwoPointPct() {
         </div>
       )}
 
+      {/* Progress bar for all-time loads */}
+      {isAllTime && loadState.allTimeStarted && !isComplete && (
+        <div className="progress-bar-wrap">
+          <div
+            className="progress-bar-fill"
+            style={{ width: `${(loadedCount / ALL_SEASONS.length) * 100}%` }}
+          />
+          <span className="progress-label">
+            {isLoading
+              ? `Loading seasons\u2026 ${loadedCount} / ${ALL_SEASONS.length}`
+              : `${loadedCount} seasons loaded${errorCount > 0 ? ` (${errorCount} failed)` : ''}`}
+          </span>
+        </div>
+      )}
+
       {/* Results */}
       <ResultsArea
-        status={dataStatus}
-        meta={meta}
         rows={displayRows}
         total={results.length}
         statKey={parsed.statKey}
+        isLoading={!isComplete && isLoading}
+        isIncomplete={isAllTime && !isComplete}
+        loadedCount={loadedCount}
+        totalSeasons={ALL_SEASONS.length}
+        onLoadAllTime={loadState.allTimeStarted ? undefined : startAllTime}
         tableSort={tableSort}
-        onSort={toggleSort}
+        onSort={(col) => setTableSort((prev) =>
+          prev?.col === col
+            ? { col, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
+            : { col, dir: 'desc' }
+        )}
+        errorSeason={
+          !isAllTime && loadState.errors.has(seasonOverride) ? seasonOverride : null
+        }
       />
     </div>
   )
 }
 
-// ── ResultsArea ───────────────────────────────────────────────────────────────
+// ─── ResultsArea ──────────────────────────────────────────────────────────────
 
 interface ResultsAreaProps {
-  status: 'loading' | 'ready' | 'empty' | 'error'
-  meta: DataFile['meta'] | null
   rows: PlayerSeason[]
   total: number
   statKey: StatKey
+  isLoading: boolean
+  isIncomplete: boolean
+  loadedCount: number
+  totalSeasons: number
+  onLoadAllTime?: () => void
   tableSort: SortState | null
   onSort: (col: string) => void
+  errorSeason: string | null
 }
 
-function ResultsArea({ status, meta, rows, total, statKey, tableSort, onSort }: ResultsAreaProps) {
-  if (status === 'loading') {
-    return <div className="state-msg">Loading data…</div>
-  }
+function ResultsArea({
+  rows, total, statKey, isLoading, isIncomplete,
+  loadedCount, totalSeasons, onLoadAllTime,
+  tableSort, onSort, errorSeason,
+}: ResultsAreaProps) {
+  const def = STAT_DEFS[statKey]
 
-  if (status === 'error' || status === 'empty') {
+  if (errorSeason) {
     return (
       <div className="state-empty">
-        <p className="state-empty-title">No data loaded yet</p>
+        <p className="state-empty-title">Could not load {errorSeason}</p>
         <p className="state-empty-body">
-          Run the ETL script to populate player season data:
-        </p>
-        <pre className="code-block">
-{`cd projects/nba-two-point-percentage/scripts
-pip install -r requirements.txt
-python fetch_data.py`}
-        </pre>
-        <p className="state-empty-body">
-          This fetches all seasons from the NBA API and saves{' '}
-          <code>public/data/player_seasons.json</code>.
-          Commit the file and redeploy to go live.
+          The NBA API was unreachable. Try reloading, or select a different season.
         </p>
       </div>
     )
   }
 
-  const def = STAT_DEFS[statKey]
+  if (rows.length === 0 && isLoading) {
+    return <div className="state-msg">Loading season data…</div>
+  }
+
+  if (rows.length === 0 && !isLoading && loadedCount === 0) {
+    return (
+      <div className="state-empty">
+        <p className="state-empty-title">Could not load season data</p>
+        <p className="state-empty-body">The NBA API may be temporarily unavailable. Try reloading the page.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="results">
       <div className="results-meta">
-        {meta?.fetched_at && (
-          <span className="results-freshness">
-            Data: {meta.seasons_covered?.[0]} – {meta.seasons_covered?.at(-1)}
-            {' · '}Updated {new Date(meta.fetched_at).toLocaleDateString()}
-          </span>
-        )}
-        <span className="results-count">{total.toLocaleString()} seasons matched · showing top {rows.length}</span>
+        <span className="results-count">
+          {total.toLocaleString()} seasons matched · showing top {rows.length}
+          {isIncomplete && (
+            <span className="results-incomplete">
+              {' '}· {loadedCount}/{totalSeasons} seasons loaded
+              {onLoadAllTime && (
+                <button className="load-all-inline" onClick={onLoadAllTime}>load all →</button>
+              )}
+            </span>
+          )}
+        </span>
       </div>
 
       <div className="table-wrap">
@@ -332,8 +386,7 @@ python fetch_data.py`}
                 className={`col-stat sortable ${tableSort?.col === 'stat' ? 'sorted' : ''}`}
                 onClick={() => onSort('stat')}
               >
-                {def.label}
-                <SortArrow col="stat" sort={tableSort} />
+                {def.label}<SortArrow col="stat" sort={tableSort} />
               </th>
               {def.extraCols.map((ec) => (
                 <th key={ec.label} className="col-extra">{ec.label}</th>
@@ -354,9 +407,7 @@ python fetch_data.py`}
                 <td className="col-season">{row.season}</td>
                 <td className="col-pos">{row.pos}</td>
                 <td className="col-team">{row.team}</td>
-                <td className="col-stat highlight">
-                  {fmtStat(def.getValue(row), def.isPercent)}
-                </td>
+                <td className="col-stat highlight">{fmtStat(def.getValue(row), def.isPercent)}</td>
                 {def.extraCols.map((ec) => (
                   <td key={ec.label} className="col-extra">
                     {ec.isInt
@@ -375,6 +426,6 @@ python fetch_data.py`}
 }
 
 function SortArrow({ col, sort }: { col: string; sort: SortState | null }) {
-  if (!sort || sort.col !== col) return <span className="sort-arrow sort-arrow--inactive">↕</span>
-  return <span className="sort-arrow">{sort.dir === 'desc' ? '↓' : '↑'}</span>
+  if (!sort || sort.col !== col) return <span className="sort-arrow sort-arrow--inactive">\u2195</span>
+  return <span className="sort-arrow">{sort.dir === 'desc' ? '\u2193' : '\u2191'}</span>
 }

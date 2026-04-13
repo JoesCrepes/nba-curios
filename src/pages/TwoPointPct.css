@@ -117,6 +117,52 @@
   color: #aaa;
 }
 
+/* ── All-time button ───────────────────────── */
+
+.all-time-btn {
+  background: none;
+  border: 1px solid #2a2a5e;
+  border-radius: 8px;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.7rem;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.all-time-btn:hover {
+  background: #1a1a3a;
+}
+
+/* ── Progress bar ──────────────────────────── */
+
+.progress-bar-wrap {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 8px;
+  height: 28px;
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.progress-label {
+  color: #555;
+  font-size: 0.75rem;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+}
+
 /* ── Controls ──────────────────────────────── */
 
 .controls {
@@ -283,6 +329,20 @@
 .results-count {
   color: #444;
   font-size: 0.78rem;
+}
+
+.results-incomplete {
+  color: #3a3a6a;
+}
+
+.load-all-inline {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0 0.25rem;
+  text-decoration: underline;
 }
 
 /* ── Table ─────────────────────────────────── */

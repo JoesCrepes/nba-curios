@@ -1,5 +1,5 @@
 {
-  "buildCommand": "(pip install -r projects/nba-two-point-percentage/scripts/requirements.txt && python projects/nba-two-point-percentage/scripts/fetch_data.py --update-current || echo 'ETL skipped — deploying with existing data') && npm install && npm run build",
+  "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
