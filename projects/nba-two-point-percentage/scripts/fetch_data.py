@@ -29,6 +29,26 @@ API_TIMEOUT = 60       # seconds per request
 MAX_RETRIES = 3        # attempts before giving up on a season
 RETRY_BACKOFF = [2, 4, 8]  # seconds between retries
 
+# stats.nba.com requires browser-like headers or it throttles/times out
+NBA_HEADERS = {
+    'Host': 'stats.nba.com',
+    'User-Agent': (
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/120.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'x-nba-stats-origin': 'stats',
+    'x-nba-stats-token': 'true',
+    'Origin': 'https://www.nba.com',
+    'Referer': 'https://www.nba.com/',
+    'Sec-Fetch-Site': 'same-site',
+    'Sec-Fetch-Mode': 'cors',
+    'Connection': 'keep-alive',
+}
+
 # ─── Defaults ────────────────────────────────────────────────────────────────
 
 DEFAULT_START = "1996-97"
@@ -59,6 +79,7 @@ def fetch_season(season: str) -> pd.DataFrame:
                 measure_type_detailed_defense="Base",
                 per_mode_detailed="Totals",
                 timeout=API_TIMEOUT,
+                headers=NBA_HEADERS,
             )
             df = resp.get_data_frames()[0]
             df["SEASON"] = season
