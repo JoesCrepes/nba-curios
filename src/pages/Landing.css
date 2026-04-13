@@ -1,0 +1,174 @@
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 3rem 2rem;
+}
+
+/* ── Header ────────────────────────────────── */
+
+.landing-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.landing-title {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.75rem;
+}
+
+.landing-subtitle {
+  color: #666;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+}
+
+/* ── Project grid ──────────────────────────── */
+
+.landing-main {
+  flex: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+.project-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.project-card {
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 16px;
+  padding: 1.75rem;
+  transition: border-color 0.15s, transform 0.15s;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.project-card-link:hover .project-card {
+  border-color: #667eea;
+  transform: translateY(-2px);
+}
+
+.project-card--dim {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.project-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.project-card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.project-card-desc {
+  color: #888;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  flex: 1;
+}
+
+.project-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: auto;
+}
+
+.project-card-cta {
+  color: #667eea;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Tags ──────────────────────────────────── */
+
+.project-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #777;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Badges ────────────────────────────────── */
+
+.badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge--soon {
+  background: #1a1a2e;
+  color: #667eea;
+  border: 1px solid #2a2a5e;
+}
+
+/* ── Footer ────────────────────────────────── */
+
+.landing-footer {
+  text-align: center;
+  margin-top: 4rem;
+  color: #333;
+  font-size: 0.8rem;
+}
+
+.muted {
+  color: #444;
+}
+
+/* ── Responsive ────────────────────────────── */
+
+@media (max-width: 600px) {
+  .landing {
+    padding: 2rem 1rem;
+  }
+
+  .landing-title {
+    font-size: 2.2rem;
+  }
+
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+}
