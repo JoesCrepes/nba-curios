@@ -1,0 +1,414 @@
+.tool-page {
+  min-height: 100vh;
+  padding: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ── Nav ───────────────────────────────────── */
+
+.tool-nav {
+  margin-bottom: 2rem;
+}
+
+.back-link {
+  color: #555;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.15s;
+}
+
+.back-link:hover {
+  color: #667eea;
+}
+
+/* ── Header ────────────────────────────────── */
+
+.tool-header {
+  margin-bottom: 2rem;
+}
+
+.tool-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.4rem;
+}
+
+.tool-subtitle {
+  color: #555;
+  font-size: 0.95rem;
+}
+
+/* ── Query input ───────────────────────────── */
+
+.query-section {
+  margin-bottom: 1.5rem;
+}
+
+.query-input-wrap {
+  position: relative;
+}
+
+.query-input {
+  width: 100%;
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 1rem;
+  padding: 0.85rem 2.5rem 0.85rem 1rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.query-input::placeholder {
+  color: #444;
+}
+
+.query-input:focus {
+  border-color: #667eea;
+}
+
+.query-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0.2rem;
+  transition: color 0.15s;
+}
+
+.query-clear:hover {
+  color: #aaa;
+}
+
+.example-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.example-pill {
+  background: none;
+  border: 1px solid #222;
+  border-radius: 999px;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.7rem;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.example-pill:hover {
+  border-color: #667eea;
+  color: #aaa;
+}
+
+/* ── Controls ──────────────────────────────── */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.control-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #444;
+}
+
+.pill-group {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.pill {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 999px;
+  color: #666;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.8rem;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.pill:hover {
+  border-color: #444;
+  color: #aaa;
+}
+
+.pill--active {
+  background: #1a1a3a;
+  border-color: #667eea;
+  color: #a0a8f0;
+}
+
+.season-select {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #aaa;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.7rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.season-select:focus {
+  border-color: #667eea;
+}
+
+.min-input {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  color: #aaa;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.7rem;
+  outline: none;
+  width: 6rem;
+  transition: border-color 0.15s;
+}
+
+.min-input:focus {
+  border-color: #667eea;
+}
+
+/* ── Interpretation ────────────────────────── */
+
+.interpretation {
+  background: #0f0f1a;
+  border: 1px solid #1e1e3a;
+  border-radius: 8px;
+  color: #7a88d0;
+  font-size: 0.82rem;
+  margin-bottom: 1.5rem;
+  padding: 0.5rem 0.85rem;
+}
+
+.interp-label {
+  color: #444;
+  margin-right: 0.3rem;
+}
+
+/* ── State messages ────────────────────────── */
+
+.state-msg {
+  color: #444;
+  font-size: 0.9rem;
+  padding: 3rem 0;
+  text-align: center;
+}
+
+.state-empty {
+  margin: 2rem 0;
+  padding: 2rem;
+  background: #111;
+  border: 1px solid #1e1e1e;
+  border-radius: 12px;
+}
+
+.state-empty-title {
+  color: #aaa;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.state-empty-body {
+  color: #555;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+.code-block {
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 8px;
+  color: #aaa;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  margin: 0.75rem 0;
+  padding: 0.85rem 1rem;
+  white-space: pre;
+}
+
+/* ── Results ───────────────────────────────── */
+
+.results {
+  margin-top: 0.5rem;
+}
+
+.results-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.results-freshness {
+  color: #333;
+  font-size: 0.75rem;
+}
+
+.results-count {
+  color: #444;
+  font-size: 0.78rem;
+}
+
+/* ── Table ─────────────────────────────────── */
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #1a1a1a;
+}
+
+.results-table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 600px;
+  width: 100%;
+}
+
+.results-table th {
+  background: #0f0f0f;
+  border-bottom: 1px solid #1e1e1e;
+  color: #444;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.results-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.results-table th.sortable:hover {
+  color: #888;
+}
+
+.results-table th.sorted {
+  color: #667eea;
+}
+
+.results-table td {
+  border-bottom: 1px solid #111;
+  color: #aaa;
+  padding: 0.55rem 0.75rem;
+  white-space: nowrap;
+}
+
+.row-even td {
+  background: #0d0d0d;
+}
+
+.col-rank {
+  color: #333 !important;
+  font-size: 0.75rem !important;
+  text-align: right;
+  width: 2.5rem;
+}
+
+.col-name {
+  color: #ddd !important;
+  font-weight: 500;
+  min-width: 160px;
+}
+
+.col-season {
+  color: #666 !important;
+  font-size: 0.8rem;
+}
+
+.col-pos,
+.col-team {
+  color: #555 !important;
+  font-size: 0.8rem;
+}
+
+.col-stat {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.col-stat.highlight {
+  color: #a0a8f0 !important;
+  font-weight: 600;
+}
+
+.col-extra {
+  color: #555 !important;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.col-gp {
+  color: #444 !important;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.sort-arrow {
+  font-size: 0.7rem;
+  margin-left: 0.25rem;
+}
+
+.sort-arrow--inactive {
+  color: #333;
+}
+
+/* ── Responsive ────────────────────────────── */
+
+@media (max-width: 640px) {
+  .tool-page {
+    padding: 1rem;
+  }
+
+  .tool-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .controls {
+    gap: 1rem;
+  }
+
+  .example-pills {
+    display: none;
+  }
+}

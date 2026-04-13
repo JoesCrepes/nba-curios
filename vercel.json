@@ -1,11 +1,15 @@
 {
-  "buildCommand": "cd projects/nba-season-trajectories && npm install && npm run build",
-  "outputDirectory": "projects/nba-season-trajectories/dist",
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
   "framework": null,
   "rewrites": [
     {
+      "source": "/season-trajectories",
+      "destination": "/season-trajectories/index.html"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/"
+      "destination": "/index.html"
     }
   ]
 }
