@@ -17,12 +17,17 @@ Options:
 
 import argparse
 import json
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 from nba_api.stats.endpoints import leaguedashplayerstats
+
+API_TIMEOUT = 60       # seconds per request
+MAX_RETRIES = 3        # attempts before giving up on a season
+RETRY_BACKOFF = [2, 4, 8]  # seconds between retries
 
 # ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -41,20 +46,32 @@ def season_range(start: str, end: str) -> list[str]:
 
 
 def fetch_season(season: str) -> pd.DataFrame:
-    """Fetch all player stats for one regular season (Totals)."""
+    """Fetch all player stats for one regular season (Totals), with retries."""
     print(f"  {season}...", end="", flush=True)
     time.sleep(0.7)   # polite rate-limiting
 
-    resp = leaguedashplayerstats.LeagueDashPlayerStats(
-        season=season,
-        season_type_all_star="Regular Season",
-        measure_type_detailed_defense="Base",
-        per_mode_detailed="Totals",
-    )
-    df = resp.get_data_frames()[0]
-    df["SEASON"] = season
-    print(f" {len(df)} players")
-    return df
+    last_err: Exception | None = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = leaguedashplayerstats.LeagueDashPlayerStats(
+                season=season,
+                season_type_all_star="Regular Season",
+                measure_type_detailed_defense="Base",
+                per_mode_detailed="Totals",
+                timeout=API_TIMEOUT,
+            )
+            df = resp.get_data_frames()[0]
+            df["SEASON"] = season
+            print(f" {len(df)} players")
+            return df
+        except Exception as e:
+            last_err = e
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f" timeout, retrying in {wait}s...", end="", flush=True)
+                time.sleep(wait)
+
+    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts: {last_err}")
 
 
 def process_season(df: pd.DataFrame, season: str) -> list[dict]:
@@ -209,7 +226,11 @@ def main():
 
     size_kb = output_path.stat().st_size / 1024
     print(f"\nSaved {len(final_rows):,} rows to {output_path} ({size_kb:.0f} KB)")
-    print(f"Seasons: {seasons_covered[0]} → {seasons_covered[-1]}")
+    if seasons_covered:
+        print(f"Seasons: {seasons_covered[0]} → {seasons_covered[-1]}")
+    else:
+        print("WARNING: no rows saved — all season fetches failed.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
