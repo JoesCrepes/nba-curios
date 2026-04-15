@@ -23,6 +23,7 @@ export function LobbyRoom({ code }: Props) {
   const [joinName, setJoinName] = useState('');
   const [joining, setJoining] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [includePlaylists, setIncludePlaylists] = useState(false);
   const [launching, setLaunching] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lobbyStatus, setLobbyStatus] = useState<LobbyStatus['lobby'] | null>(null);
@@ -115,7 +116,8 @@ export function LobbyRoom({ code }: Props) {
   function handleConnectSpotify() {
     if (!session) return;
     setConnecting(true);
-    window.location.href = `/api/auth/spotify?participantId=${session.participantId}&lobbyCode=${code}`;
+    const url = `/api/auth/spotify?participantId=${session.participantId}&lobbyCode=${code}&includePlaylists=${includePlaylists}`;
+    window.location.href = url;
   }
 
   async function handleFindSharedSongs() {
@@ -218,6 +220,26 @@ export function LobbyRoom({ code }: Props) {
           {connectedCount < 2 && (
             <p className={styles.hint}>At least 2 people need to connect their Spotify first.</p>
           )}
+        </div>
+      )}
+
+      {/* Playlist opt-in toggle — shown when user has joined but not yet connected */}
+      {session && !selfParticipant?.connected_at && (
+        <div className={styles.playlistToggle}>
+          <label className={styles.toggleLabel}>
+            <input
+              type="checkbox"
+              checked={includePlaylists}
+              onChange={(e) => setIncludePlaylists(e.target.checked)}
+              className={styles.toggleInput}
+            />
+            <span className={styles.toggleText}>
+              Also include songs from my playlists
+              <span className={styles.toggleHint}>
+                {' '}— songs from playlists you created, not just liked songs
+              </span>
+            </span>
+          </label>
         </div>
       )}
 

@@ -80,7 +80,7 @@ export async function getUserProfile(
   };
 }
 
-// ── Liked songs (minimal refs only) ──────────────────────────────────────────
+// ── Liked songs ───────────────────────────────────────────────────────────────
 
 export async function fetchLikedTrackRefs(accessToken: string): Promise<TrackRef[]> {
   const refs: TrackRef[] = [];
@@ -100,7 +100,12 @@ export async function fetchLikedTrackRefs(accessToken: string): Promise<TrackRef
     for (const item of data.items) {
       const t = item.track;
       if (!t || t.is_local) continue;
-      refs.push({ isrc: t.external_ids?.isrc ?? null, spotify_id: t.id });
+      refs.push({
+        isrc: t.external_ids?.isrc ?? null,
+        spotify_id: t.id,
+        name: t.name,
+        artist: (t.artists as { name: string }[])[0]?.name ?? '',
+      });
     }
     url = data.next ?? null;
   }
@@ -108,13 +113,13 @@ export async function fetchLikedTrackRefs(accessToken: string): Promise<TrackRef
   return refs;
 }
 
-// ── User-owned playlist tracks (minimal refs, with fields param for efficiency) ──
+// ── User-owned playlist tracks ────────────────────────────────────────────────
 
 export async function fetchOwnedPlaylistTrackRefs(
   accessToken: string,
   userId: string
 ): Promise<TrackRef[]> {
-  // 1. Collect all playlists owned by this user
+  // 1. Collect playlists owned by this user
   const ownedPlaylistIds: string[] = [];
   let listUrl: string | null = 'https://api.spotify.com/v1/me/playlists?limit=50';
 
@@ -135,11 +140,11 @@ export async function fetchOwnedPlaylistTrackRefs(
     listUrl = data.next ?? null;
   }
 
-  // 2. Fetch tracks for each owned playlist using fields to minimize payload
+  // 2. Fetch minimal track data (with name + artist) for each owned playlist
   const refs: TrackRef[] = [];
+  const fields = encodeURIComponent('items(track(id,name,artists(name),external_ids(isrc))),next');
 
   for (const playlistId of ownedPlaylistIds) {
-    const fields = encodeURIComponent('items(track(id,external_ids(isrc))),next');
     let trackUrl: string | null =
       `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100&fields=${fields}`;
 
@@ -157,7 +162,12 @@ export async function fetchOwnedPlaylistTrackRefs(
       for (const item of data.items) {
         const t = item?.track;
         if (!t?.id) continue;
-        refs.push({ isrc: t.external_ids?.isrc ?? null, spotify_id: t.id });
+        refs.push({
+          isrc: t.external_ids?.isrc ?? null,
+          spotify_id: t.id,
+          name: t.name ?? '',
+          artist: (t.artists as { name: string }[])?.[0]?.name ?? '',
+        });
       }
       trackUrl = data.next ?? null;
     }
@@ -166,7 +176,7 @@ export async function fetchOwnedPlaylistTrackRefs(
   return refs;
 }
 
-// ── Track enrichment (batch fetch full details for a small matched set) ───────
+// ── Track enrichment (batch fetch full details for matched set only) ──────────
 
 export async function enrichTracks(
   accessToken: string,
@@ -185,13 +195,13 @@ export async function enrichTracks(
     for (const t of data.tracks ?? []) {
       if (!t) continue;
       const images = t.album?.images as { url: string; width: number }[] | undefined;
-      // Prefer 300px thumbnail; fall back to largest available
       const album_art =
         images?.find((img) => img.width === 300)?.url ?? images?.[0]?.url ?? null;
       tracks.push({
         isrc: t.external_ids?.isrc ?? null,
         spotify_id: t.id,
         name: t.name,
+        artist: (t.artists as { name: string }[])[0]?.name ?? '',
         artists: (t.artists as { name: string }[]).map((a) => a.name),
         album: t.album.name,
         album_art,

@@ -31,11 +31,13 @@ export async function GET(req: Request) {
   let participantId: string;
   let lobbyCode: string;
   let nonce: string;
+  let includePlaylists = false;
   try {
     const decoded = JSON.parse(Buffer.from(stateParam, 'base64url').toString('utf-8'));
     participantId = decoded.participantId;
     lobbyCode = decoded.lobbyCode;
     nonce = decoded.nonce;
+    includePlaylists = decoded.includePlaylists === true;
   } catch (e) {
     console.error('[callback] Failed to decode state:', e);
     return NextResponse.redirect(`${baseUrl}/?error=invalid_state`);
@@ -76,13 +78,14 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${baseUrl}/lobby/${lobbyCode}?error=profile_fetch_failed`);
   }
 
-  // Fetch liked songs + owned playlist tracks, then deduplicate
+  // Fetch liked songs + optionally owned playlist tracks, then deduplicate
   let tracks: TrackRef[];
   try {
-    const [likedRefs, playlistRefs] = await Promise.all([
-      fetchLikedTrackRefs(tokens.access_token),
-      fetchOwnedPlaylistTrackRefs(tokens.access_token, profile.id),
-    ]);
+    const fetches: Promise<TrackRef[]>[] = [fetchLikedTrackRefs(tokens.access_token)];
+    if (includePlaylists) {
+      fetches.push(fetchOwnedPlaylistTrackRefs(tokens.access_token, profile.id));
+    }
+    const [likedRefs, playlistRefs = []] = await Promise.all(fetches);
 
     // Deduplicate by ISRC (preferred) or spotify_id
     const seen = new Set<string>();

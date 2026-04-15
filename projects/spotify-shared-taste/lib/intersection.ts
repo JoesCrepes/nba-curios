@@ -27,6 +27,9 @@ export function computeIntersection(
         counts.set(key, {
           key,
           spotify_id: track.spotify_id,
+          // name/artist from first participant who has this track (for search)
+          name: track.name ?? '',
+          artist: track.artist ?? '',
           count: 1,
           likedBy: [participant.name],
         });
