@@ -2,14 +2,6 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { exchangeCode, fetchAllLikedTracks } from '@/lib/spotify';
 
-// GET /api/auth/callback?code=...&state=...
-// Handles the Spotify OAuth callback:
-//   1. Validates nonce (CSRF check)
-//   2. Exchanges auth code for tokens
-//   3. Fetches all liked songs
-//   4. Stores tokens + tracks in participant_secrets
-//   5. Updates participant.connected_at + track_count
-//   6. Redirects back to the lobby
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
@@ -17,16 +9,16 @@ export async function GET(req: Request) {
   const errorParam = searchParams.get('error');
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
 
-  // Handle user denying access
   if (errorParam) {
+    console.error('[callback] Spotify returned error:', errorParam);
     return NextResponse.redirect(`${baseUrl}/?error=spotify_denied`);
   }
 
   if (!code || !stateParam) {
+    console.error('[callback] Missing code or state param');
     return NextResponse.redirect(`${baseUrl}/?error=missing_params`);
   }
 
-  // Decode and validate state
   let participantId: string;
   let lobbyCode: string;
   let nonce: string;
@@ -35,11 +27,13 @@ export async function GET(req: Request) {
     participantId = decoded.participantId;
     lobbyCode = decoded.lobbyCode;
     nonce = decoded.nonce;
-  } catch {
+  } catch (e) {
+    console.error('[callback] Failed to decode state:', e);
     return NextResponse.redirect(`${baseUrl}/?error=invalid_state`);
   }
 
-  // Verify and consume the nonce
+  console.log(`[callback] participant=${participantId} lobby=${lobbyCode}`);
+
   const { data: nonceRow, error: nonceError } = await supabaseAdmin
     .from('oauth_nonces')
     .select('participant_id, lobby_code')
@@ -48,29 +42,30 @@ export async function GET(req: Request) {
     .single();
 
   if (nonceError || !nonceRow) {
+    console.error('[callback] Nonce validation failed:', nonceError?.message ?? 'not found');
     return NextResponse.redirect(`${baseUrl}/lobby/${lobbyCode}?error=invalid_nonce`);
   }
 
-  // Delete used nonce immediately
   await supabaseAdmin.from('oauth_nonces').delete().eq('nonce', nonce);
 
-  // Exchange auth code for tokens
   let tokens: { access_token: string; refresh_token: string };
   try {
     tokens = await exchangeCode(code);
-  } catch {
+    console.log('[callback] Token exchange succeeded');
+  } catch (e) {
+    console.error('[callback] Token exchange failed:', e);
     return NextResponse.redirect(`${baseUrl}/lobby/${lobbyCode}?error=token_exchange_failed`);
   }
 
-  // Fetch all liked songs (this may take a few seconds for large libraries)
   let tracks: Awaited<ReturnType<typeof fetchAllLikedTracks>>;
   try {
     tracks = await fetchAllLikedTracks(tokens.access_token);
-  } catch {
+    console.log(`[callback] Fetched ${tracks.length} tracks`);
+  } catch (e) {
+    console.error('[callback] Track fetch failed:', e);
     return NextResponse.redirect(`${baseUrl}/lobby/${lobbyCode}?error=tracks_fetch_failed`);
   }
 
-  // Upsert tokens + tracks into participant_secrets
   const { error: secretError } = await supabaseAdmin
     .from('participant_secrets')
     .upsert({
@@ -81,14 +76,15 @@ export async function GET(req: Request) {
     });
 
   if (secretError) {
+    console.error('[callback] Supabase upsert failed:', secretError.message);
     return NextResponse.redirect(`${baseUrl}/lobby/${lobbyCode}?error=storage_failed`);
   }
 
-  // Mark participant as connected
   await supabaseAdmin
     .from('participants')
     .update({ connected_at: new Date().toISOString(), track_count: tracks.length })
     .eq('id', participantId);
 
+  console.log(`[callback] Done — participant ${participantId} connected`);
   return NextResponse.redirect(`${baseUrl}/lobby/${lobbyCode}`);
 }
