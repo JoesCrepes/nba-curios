@@ -187,6 +187,26 @@ export function LobbyRoom({ code }: Props) {
         </div>
       )}
 
+      {/* Playlist opt-in toggle — shown when user has joined but not yet connected */}
+      {session && !selfParticipant?.connected_at && (
+        <div className={styles.playlistToggle}>
+          <label className={styles.toggleLabel}>
+            <input
+              type="checkbox"
+              checked={includePlaylists}
+              onChange={(e) => setIncludePlaylists(e.target.checked)}
+              className={styles.toggleInput}
+            />
+            <span className={styles.toggleText}>
+              Also include songs from my playlists
+              <span className={styles.toggleHint}>
+                {' '}— songs from playlists you created, not just liked songs
+              </span>
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* Participant list */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Participants</h2>
@@ -220,26 +240,6 @@ export function LobbyRoom({ code }: Props) {
           {connectedCount < 2 && (
             <p className={styles.hint}>At least 2 people need to connect their Spotify first.</p>
           )}
-        </div>
-      )}
-
-      {/* Playlist opt-in toggle — shown when user has joined but not yet connected */}
-      {session && !selfParticipant?.connected_at && (
-        <div className={styles.playlistToggle}>
-          <label className={styles.toggleLabel}>
-            <input
-              type="checkbox"
-              checked={includePlaylists}
-              onChange={(e) => setIncludePlaylists(e.target.checked)}
-              className={styles.toggleInput}
-            />
-            <span className={styles.toggleText}>
-              Also include songs from my playlists
-              <span className={styles.toggleHint}>
-                {' '}— songs from playlists you created, not just liked songs
-              </span>
-            </span>
-          </label>
         </div>
       )}
 

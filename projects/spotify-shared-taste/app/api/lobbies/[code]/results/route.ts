@@ -106,16 +106,27 @@ export async function GET(
   let intersection: { track: import('@/types').Track; count: number; likedBy: string[] }[] = [];
 
   if (accessToken) {
-    const enriched = await enrichTracks(accessToken, pageRefs.map((r) => r.spotify_id));
-    const enrichedById = new Map(enriched.map((t) => [t.spotify_id, t]));
+    let enrichedById = new Map<string, import('@/types').Track>();
+    try {
+      const enriched = await enrichTracks(accessToken, pageRefs.map((r) => r.spotify_id));
+      enrichedById = new Map(enriched.map((t) => [t.spotify_id, t]));
+    } catch {
+      // enrichTracks failed (e.g. expired token, 401) — fall back to stored data below
+    }
 
-    intersection = pageRefs
-      .filter((r) => enrichedById.has(r.spotify_id))
-      .map((r) => ({
-        track: enrichedById.get(r.spotify_id)!,
-        count: r.count,
-        likedBy: r.likedBy,
-      }));
+    intersection = pageRefs.map((r) => ({
+      track: enrichedById.get(r.spotify_id) ?? {
+        isrc: r.isrc,
+        spotify_id: r.spotify_id,
+        name: r.name,
+        artist: r.artist,
+        artists: [r.artist],
+        album: '',
+        album_art: null,
+      },
+      count: r.count,
+      likedBy: r.likedBy,
+    }));
   }
 
   return NextResponse.json({
