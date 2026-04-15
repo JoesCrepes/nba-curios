@@ -1,13 +1,32 @@
 .row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 0;
+  gap: 12px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
 
 .row:last-child {
   border-bottom: none;
+}
+
+.art {
+  flex-shrink: 0;
+}
+
+.artImg {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  object-fit: cover;
+  display: block;
+}
+
+.artPlaceholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  background: var(--border);
 }
 
 .trackInfo {

@@ -8,6 +8,19 @@
   text-align: center;
 }
 
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .header {
   padding: 32px 0 20px;
   display: flex;
@@ -32,19 +45,28 @@
   letter-spacing: 1px;
 }
 
+/* Legend */
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 12px;
+  align-items: center;
 }
 
 .legendItem {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 13px;
   font-weight: 500;
+}
+
+.legendAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .legendDot {
@@ -54,6 +76,11 @@
   flex-shrink: 0;
 }
 
+.legendName {
+  font-weight: 600;
+}
+
+/* Threshold */
 .thresholdCard {
   margin-bottom: 12px;
 }
@@ -71,6 +98,11 @@
   font-size: 18px;
   font-weight: 800;
   color: var(--accent);
+}
+
+.loadingDot {
+  color: var(--muted);
+  font-size: 16px;
 }
 
 .slider {
@@ -102,6 +134,7 @@
   letter-spacing: 0.3px;
 }
 
+/* Track list */
 .trackList {
   margin-bottom: 16px;
   padding: 4px 24px;
@@ -114,6 +147,7 @@
   text-align: center;
 }
 
+/* Playlist */
 .playlistCard {
   margin-bottom: 40px;
 }
