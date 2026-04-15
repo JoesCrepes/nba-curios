@@ -1,18 +1,17 @@
-import type { Track, IntersectionEntry } from '@/types';
+import type { TrackRef, IntersectionRef } from '@/types';
 
-export interface ParticipantTracks {
+export interface ParticipantTrackRefs {
   name: string;
-  tracks: Track[];
+  tracks: TrackRef[];
 }
 
 export function computeIntersection(
-  participants: ParticipantTracks[],
+  participants: ParticipantTrackRefs[],
   threshold: number
-): IntersectionEntry[] {
-  const counts = new Map<string, IntersectionEntry>();
+): IntersectionRef[] {
+  const counts = new Map<string, IntersectionRef>();
 
   for (const participant of participants) {
-    // Deduplicate within the same participant (same ISRC from different album versions)
     const seen = new Set<string>();
 
     for (const track of participant.tracks) {
@@ -27,8 +26,11 @@ export function computeIntersection(
       } else {
         counts.set(key, {
           key,
+          spotify_id: track.spotify_id,
+          // name/artist from first participant who has this track (for search)
+          name: track.name ?? '',
+          artist: track.artist ?? '',
           count: 1,
-          track,
           likedBy: [participant.name],
         });
       }
@@ -37,5 +39,5 @@ export function computeIntersection(
 
   return [...counts.values()]
     .filter((entry) => entry.count >= threshold)
-    .sort((a, b) => b.count - a.count || a.track.name.localeCompare(b.track.name));
+    .sort((a, b) => b.count - a.count);
 }
