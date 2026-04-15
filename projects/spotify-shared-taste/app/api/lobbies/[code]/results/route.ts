@@ -116,7 +116,7 @@ export async function GET(
 
     intersection = pageRefs.map((r) => ({
       track: enrichedById.get(r.spotify_id) ?? {
-        isrc: r.isrc,
+        isrc: null,
         spotify_id: r.spotify_id,
         name: r.name,
         artist: r.artist,
