@@ -40,3 +40,6 @@ coverage/
 # Temp
 .cache/
 .temp/
+
+# TypeScript build info
+*.tsbuildinfo
