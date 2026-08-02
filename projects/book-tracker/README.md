@@ -5,9 +5,11 @@ checker for library availability via Libby/OverDrive, filtered by format
 (audiobook vs. ebook).
 
 This is a local-only app: a small Express + SQLite API and a React frontend,
-meant to run on your own machine. It is **not** meant to be deployed
-publicly -- it holds your Libby account link and talks to undocumented
-OverDrive endpoints.
+meant to run on your own machine. The full app (`server/src`, the one with
+persistent tracking data and a stored Libby account link) is **not** meant
+to be deployed publicly. There's also a separate, stateless POC
+(`server/api` + `server/public`) meant only for quick validation from a
+browser without a local dev setup -- see "Vercel POC" below.
 
 ## Architecture
 
@@ -78,6 +80,42 @@ devices" on some versions) to get an 8-digit code. Paste it into this app's
 Settings page. This clones your Libby device identity -- no password is
 needed here, and it inherits whatever library cards are already linked in
 your Libby account.
+
+## Vercel POC
+
+A stateless variant lives at `server/api` (+ a plain-HTML test page at
+`server/public/index.html`) for quick validation from a phone/browser
+without a local dev setup -- no database, nothing persists between
+requests. It exercises the exact same `server/src/hardcover` and
+`server/src/libby` modules the real app uses, just without the sqlite
+sync/storage layer.
+
+**Deploy it as its own Vercel project** (same pattern as
+`projects/spotify-shared-taste`):
+
+1. In Vercel: **Add New -> Project**, pick this repo.
+2. **Root Directory**: `projects/book-tracker/server`. Framework preset:
+   Other (it's picked up via `server/vercel.json`).
+3. **Environment Variables**: add `HARDCOVER_API_TOKEN`. Nothing else is
+   required -- the availability/link endpoints don't need any secrets
+   (the OverDrive Thunder catalog API is public, and the Libby link
+   endpoint doesn't store the identity token it gets back).
+4. Deploy, then open the deployed URL. Three sections: search (Hardcover),
+   availability check (Libby, takes a library key directly -- no account
+   needed), and an optional account-link tester.
+
+Since nothing is stored, this deployment is safe to leave public or tear
+down whenever -- there's no database to leak and no long-lived credential
+sitting on the server. Two things worth knowing before using it:
+
+- It has no auth and no rate limiting of its own -- anyone with the URL
+  can trigger Hardcover searches (against your token's 60 req/min limit)
+  or attempt the Libby link flow. Fine for a short-lived personal check,
+  not something to leave linked from anywhere public long-term.
+- The availability endpoint takes a `libraryKey` directly (e.g. `dclibrary`
+  for DC Public Library, guessed from their `dclibrary.overdrive.com` URL
+  and pre-filled in the test page -- verify it's actually right once
+  deployed, since it's unconfirmed).
 
 ## Caveats
 

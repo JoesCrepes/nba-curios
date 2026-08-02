@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Book Tracker POC</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    padding: 1rem 1rem 3rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 640px;
+    margin-inline: auto;
+    line-height: 1.4;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 0.1rem; }
+  .subtitle { color: #888; font-size: 0.9rem; margin-top: 0; }
+  section {
+    border: 1px solid #8883;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1.25rem 0;
+  }
+  h2 { margin-top: 0; font-size: 1.05rem; }
+  p.hint { color: #888; font-size: 0.85rem; }
+  label { display: block; font-size: 0.85rem; color: #888; margin-top: 0.6rem; }
+  input, select, button {
+    font: inherit;
+    width: 100%;
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid #8886;
+    box-sizing: border-box;
+    margin-top: 0.25rem;
+  }
+  button {
+    background: #7a4f2b;
+    color: #fff;
+    border: none;
+    margin-top: 0.75rem;
+    font-weight: 600;
+  }
+  button:disabled { opacity: 0.5; }
+  .quick-picks { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .quick-picks button {
+    width: auto;
+    background: #7a4f2b22;
+    color: inherit;
+    border: 1px solid #8886;
+    font-weight: 400;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.7rem;
+    margin: 0;
+  }
+  .format-picks { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .format-picks button { margin: 0; }
+  .format-picks button.active { background: #7a4f2b; }
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #8881;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    margin-top: 0.75rem;
+    max-height: 50vh;
+    overflow: auto;
+  }
+  .result-card { border: 1px solid #8883; border-radius: 8px; padding: 0.6rem; margin-top: 0.5rem; font-size: 0.9rem; }
+  .result-card b { display: block; }
+</style>
+</head>
+<body>
+  <h1>Book Tracker — POC</h1>
+  <p class="subtitle">Stateless validation only. Nothing here saves to a database — see the real app for that.</p>
+
+  <section>
+    <h2>1. Search (Hardcover)</h2>
+    <p class="hint">Validates the metadata source. Requires HARDCOVER_API_TOKEN to be set in this deployment's env vars.</p>
+    <label>Query</label>
+    <input id="search-q" placeholder="title, author, or series" value="Project Hail Mary" />
+    <button id="search-btn">Search</button>
+    <div id="search-results"></div>
+  </section>
+
+  <section>
+    <h2>2. Check library availability (Libby)</h2>
+    <p class="hint">
+      No card number or login needed — this is public catalog data. Library key is a best guess for
+      DC Public Library (<code>dclibrary</code>, from their OverDrive URL) — edit if it turns out wrong.
+    </p>
+    <label>Library key</label>
+    <input id="avail-key" value="dclibrary" />
+    <label>Title</label>
+    <input id="avail-title" placeholder="Book title" />
+    <label>Author</label>
+    <input id="avail-author" placeholder="Author (optional but helps matching)" />
+    <div class="quick-picks">
+      <button type="button" data-title="The Correspondent" data-author="Virginia Evans">The Correspondent</button>
+      <button type="button" data-title="Heart the Lover" data-author="Lily King">Heart the Lover</button>
+      <button type="button" data-title="Where the Axe Is Buried" data-author="Ray Nayler">Where the Axe Is Buried</button>
+      <button type="button" data-title="Factfulness" data-author="Hans Rosling">Factfulness</button>
+    </div>
+    <div class="format-picks">
+      <button type="button" id="fmt-audiobook" class="active">Audiobook</button>
+      <button type="button" id="fmt-ebook">Ebook</button>
+    </div>
+    <button id="avail-btn">Check availability</button>
+    <div id="avail-results"></div>
+  </section>
+
+  <section>
+    <h2>3. Link a Libby account (optional)</h2>
+    <p class="hint">
+      Only needed to test the account-link auth flow itself — not required for availability checks above.
+      In the Libby app: Settings → "Copy to another device" for an 8-digit code. Nothing is stored;
+      the response just shows what your account's chip/sync returns.
+    </p>
+    <label>8-digit clone code</label>
+    <input id="link-code" inputmode="numeric" maxlength="8" placeholder="12345678" />
+    <button id="link-btn">Link</button>
+    <div id="link-results"></div>
+  </section>
+
+<script>
+  const $ = (id) => document.getElementById(id)
+  let format = 'audiobook'
+
+  $('fmt-audiobook').onclick = () => setFormat('audiobook')
+  $('fmt-ebook').onclick = () => setFormat('ebook')
+  function setFormat(f) {
+    format = f
+    $('fmt-audiobook').classList.toggle('active', f === 'audiobook')
+    $('fmt-ebook').classList.toggle('active', f === 'ebook')
+  }
+
+  document.querySelectorAll('.quick-picks button').forEach((btn) => {
+    btn.onclick = () => {
+      $('avail-title').value = btn.dataset.title
+      $('avail-author').value = btn.dataset.author
+    }
+  })
+
+  async function run(btn, fn) {
+    btn.disabled = true
+    const original = btn.textContent
+    btn.textContent = 'Working…'
+    try {
+      await fn()
+    } finally {
+      btn.disabled = false
+      btn.textContent = original
+    }
+  }
+
+  $('search-btn').onclick = () => run($('search-btn'), async () => {
+    const q = $('search-q').value.trim()
+    const out = $('search-results')
+    out.innerHTML = ''
+    if (!q) return
+    const res = await fetch('/api/search?q=' + encodeURIComponent(q))
+    const data = await res.json()
+    if (!res.ok) { out.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>'; return }
+    out.innerHTML = data.results.map((b) => `
+      <div class="result-card">
+        <b>${escapeHtml(b.title)}</b>
+        ${b.authors.join(', ')}
+        <div>${b.editions.map((e) => `${e.format || 'unknown'}${e.audioHours ? ' (' + e.audioHours + 'h)' : ''}`).join(' · ')}</div>
+      </div>
+    `).join('') || '<p class="hint">No results.</p>'
+  })
+
+  $('avail-btn').onclick = () => run($('avail-btn'), async () => {
+    const out = $('avail-results')
+    out.innerHTML = ''
+    const body = {
+      libraryKey: $('avail-key').value.trim(),
+      title: $('avail-title').value.trim(),
+      author: $('avail-author').value.trim(),
+      format,
+    }
+    if (!body.libraryKey || !body.title) { out.innerHTML = '<p class="hint">Fill in library key and title.</p>'; return }
+    const res = await fetch('/api/availability', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    out.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>'
+  })
+
+  $('link-btn').onclick = () => run($('link-btn'), async () => {
+    const out = $('link-results')
+    out.innerHTML = ''
+    const code = $('link-code').value.trim()
+    if (!code) return
+    const res = await fetch('/api/libby-link', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    const data = await res.json()
+    out.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>'
+  })
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  }
+</script>
+</body>
+</html>
