@@ -21,6 +21,9 @@ Interactive visualization comparing win trajectories across notable NBA seasons.
 - 2012-13 Oklahoma City Thunder
 - 2024-25 Oklahoma City Thunder (current)
 
+### 3. [Commute Estimator](./projects/commute-estimator)
+Installable PWA that estimates live door-to-door commute time for mixed-mode trips (bike + transit + bike), combining real-time WMATA predictions/incidents and routed bike-leg times with an LLM reasoning layer for judgment calls a plain calculator can't make. Next.js app with its own backend — see its README for setup and required API keys.
+
 ## Repository Structure
 
 ```
