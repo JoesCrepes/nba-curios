@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import styles from './page.module.css';
 import type { CommuteEstimate, LatLon, Segment } from '@/lib/types';
-import { DEFAULT_TRIP_ID } from '@/lib/config';
+import { TRIPS, type TripConfig } from '@/lib/config';
+import { loadCustomTrips, saveCustomTrip, deleteCustomTrip, loadActiveTripId, saveActiveTripId } from '@/lib/tripStorage';
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
+const TripPlanner = dynamic(() => import('@/components/TripPlanner'), { ssr: false });
 
 const segmentColors: Record<Segment['mode'], string> = {
   bike: '#22c55e',
@@ -15,6 +17,8 @@ const segmentColors: Record<Segment['mode'], string> = {
   wait: '#64748b',
 };
 
+const builtInIds = new Set(TRIPS.map((t) => t.id));
+
 export default function Page() {
   const [position, setPosition] = useState<LatLon | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -22,6 +26,20 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasFetchedOnce = useRef(false);
+
+  const [customTrips, setCustomTrips] = useState<TripConfig[]>([]);
+  const [activeTripId, setActiveTripId] = useState<string>(TRIPS[0].id);
+  const [showPlanner, setShowPlanner] = useState(false);
+
+  const allTrips = [...TRIPS, ...customTrips];
+  const activeTrip = allTrips.find((t) => t.id === activeTripId) ?? TRIPS[0];
+
+  // Restore saved trips + last-picked trip once the browser is available.
+  useEffect(() => {
+    setCustomTrips(loadCustomTrips());
+    const savedId = loadActiveTripId();
+    if (savedId) setActiveTripId(savedId);
+  }, []);
 
   // Live position for the map marker — free, client-side, no backend call.
   useEffect(() => {
@@ -37,16 +55,15 @@ export default function Page() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
-  const fetchEstimate = useCallback(async (pos: LatLon) => {
+  const fetchEstimate = useCallback(async (pos: LatLon, trip: TripConfig) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        lat: String(pos.lat),
-        lon: String(pos.lon),
-        trip: DEFAULT_TRIP_ID,
+      const res = await fetch('/api/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin: pos, trip }),
       });
-      const res = await fetch(`/api/estimate?${params.toString()}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Request failed (${res.status})`);
@@ -64,9 +81,32 @@ export default function Page() {
   useEffect(() => {
     if (position && !hasFetchedOnce.current) {
       hasFetchedOnce.current = true;
-      fetchEstimate(position);
+      fetchEstimate(position, activeTrip);
     }
+    // activeTrip intentionally excluded — trip switches are handled by handleSelectTrip below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position, fetchEstimate]);
+
+  function handleSelectTrip(id: string) {
+    setActiveTripId(id);
+    saveActiveTripId(id);
+    const trip = allTrips.find((t) => t.id === id);
+    if (position && trip) fetchEstimate(position, trip);
+  }
+
+  function handleSaveTrip(trip: TripConfig) {
+    saveCustomTrip(trip);
+    setCustomTrips(loadCustomTrips());
+    setShowPlanner(false);
+    handleSelectTrip(trip.id);
+  }
+
+  function handleDeleteActiveTrip() {
+    if (builtInIds.has(activeTripId)) return;
+    deleteCustomTrip(activeTripId);
+    setCustomTrips(loadCustomTrips());
+    handleSelectTrip(TRIPS[0].id);
+  }
 
   return (
     <div className={styles.page}>
@@ -75,11 +115,33 @@ export default function Page() {
         <button
           className={styles.refreshButton}
           disabled={!position || loading}
-          onClick={() => position && fetchEstimate(position)}
+          onClick={() => position && fetchEstimate(position, activeTrip)}
         >
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
+
+      <div className={styles.tripBar}>
+        <select
+          className={styles.tripSelect}
+          value={activeTripId}
+          onChange={(e) => handleSelectTrip(e.target.value)}
+        >
+          {allTrips.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <button className={styles.smallLinkButton} onClick={() => setShowPlanner(true)}>
+          + New trip
+        </button>
+        {!builtInIds.has(activeTripId) && (
+          <button className={styles.smallLinkButton} onClick={handleDeleteActiveTrip}>
+            Delete
+          </button>
+        )}
+      </div>
 
       <div className={styles.mapWrap}>
         {position ? (
@@ -136,6 +198,8 @@ export default function Page() {
           </>
         )}
       </div>
+
+      {showPlanner && <TripPlanner onSave={handleSaveTrip} onClose={() => setShowPlanner(false)} />}
     </div>
   );
 }

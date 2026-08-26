@@ -1,0 +1,154 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.7);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.sheet {
+  background: #0f172a;
+  border-top: 1px solid #1e293b;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 88dvh;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+.sheet h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-bottom: 0.3rem;
+}
+
+.field input[type='text'],
+.field select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+}
+
+.stationList {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+}
+
+.stationRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+}
+
+.addressRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.addressRow input {
+  flex: 1;
+}
+
+.smallButton {
+  background: #334155;
+  color: #e2e8f0;
+  border: none;
+  border-radius: 8px;
+  padding: 0 0.9rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.resolved {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: #86efac;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: -0.5rem 0 1rem;
+}
+
+.errorText {
+  font-size: 0.8rem;
+  color: #f87171;
+  margin: 0.4rem 0 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+}
+
+.cancelButton {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+}
+
+.saveButton {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.savedTrips {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #1e293b;
+}
+
+.savedTrips h3 {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0 0 0.5rem;
+}
+
+.savedTripRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+}
+
+.savedTripRow span {
+  flex: 1;
+}

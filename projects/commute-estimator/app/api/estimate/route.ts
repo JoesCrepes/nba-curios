@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DEFAULT_TRIP_ID, getTrip } from '@/lib/config';
+import { DEFAULT_TRIP_ID, getTrip, type TripConfig } from '@/lib/config';
 import { getBikeLeg } from '@/lib/routing';
 import { getRailPredictions, getIncidents, incidentsForLine, getBusPredictions } from '@/lib/wmata';
 import { getRecommendation } from '@/lib/anthropic';
-import type { CommuteEstimate, Segment, WmataIncident } from '@/lib/types';
+import type { CommuteEstimate, LatLon, Segment, WmataIncident } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,27 +22,48 @@ function warn(warnings: string[], userMessage: string, err: unknown): void {
   warnings.push(userMessage);
 }
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const latParam = searchParams.get('lat');
-  const lonParam = searchParams.get('lon');
-  const tripId = searchParams.get('trip') ?? DEFAULT_TRIP_ID;
+function isLatLon(x: unknown): x is LatLon {
+  return (
+    typeof x === 'object' &&
+    x !== null &&
+    typeof (x as LatLon).lat === 'number' &&
+    typeof (x as LatLon).lon === 'number'
+  );
+}
 
-  if (latParam === null || lonParam === null) {
-    return NextResponse.json({ error: 'lat and lon query params are required' }, { status: 400 });
-  }
-  const lat = Number(latParam);
-  const lon = Number(lonParam);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    return NextResponse.json({ error: 'lat and lon must be numbers' }, { status: 400 });
-  }
+function isStation(x: unknown): x is TripConfig['boardingStation'] {
+  return (
+    typeof x === 'object' &&
+    x !== null &&
+    typeof (x as { code: unknown }).code === 'string' &&
+    typeof (x as { name: unknown }).name === 'string' &&
+    isLatLon((x as { location: unknown }).location)
+  );
+}
 
-  const trip = getTrip(tripId);
-  if (!trip) {
-    return NextResponse.json({ error: `Unknown trip id: ${tripId}` }, { status: 404 });
-  }
+// A trip submitted from the trip planner UI, not looked up from lib/config.ts
+// — validate its shape before trusting it (it crosses a network boundary).
+function isValidTripConfig(x: unknown): x is TripConfig {
+  if (typeof x !== 'object' || x === null) return false;
+  const t = x as Partial<TripConfig>;
+  return (
+    typeof t.id === 'string' &&
+    typeof t.label === 'string' &&
+    typeof t.line === 'string' &&
+    isStation(t.boardingStation) &&
+    Array.isArray(t.alightingStations) &&
+    t.alightingStations.length > 0 &&
+    t.alightingStations.every(isStation) &&
+    typeof t.finalDestination === 'object' &&
+    t.finalDestination !== null &&
+    typeof t.finalDestination.name === 'string' &&
+    isLatLon(t.finalDestination.location) &&
+    typeof t.typicalRailRideMinutes === 'object' &&
+    t.typicalRailRideMinutes !== null
+  );
+}
 
-  const origin = { lat, lon };
+async function buildEstimate(origin: LatLon, trip: TripConfig): Promise<CommuteEstimate> {
   const warnings: string[] = [];
   let wmataOk = true;
   let routingOk = true;
@@ -174,7 +195,7 @@ export async function GET(req: NextRequest) {
     candidateSegmentSets.find((c) => c.label === recommendation.chosenOption) ??
     [...candidateSegmentSets].sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
 
-  const estimate: CommuteEstimate = {
+  return {
     generatedAt: new Date().toISOString(),
     origin,
     destination: { name: trip.finalDestination.name, location: trip.finalDestination.location },
@@ -183,6 +204,68 @@ export async function GET(req: NextRequest) {
     recommendation,
     dataFreshness: { wmataOk, routingOk, llmOk, warnings },
   };
+}
 
-  return NextResponse.json(estimate);
+// Built-in trips only, via query params — kept for quick manual testing.
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const latParam = searchParams.get('lat');
+  const lonParam = searchParams.get('lon');
+  const tripId = searchParams.get('trip') ?? DEFAULT_TRIP_ID;
+
+  if (latParam === null || lonParam === null) {
+    return NextResponse.json({ error: 'lat and lon query params are required' }, { status: 400 });
+  }
+  const lat = Number(latParam);
+  const lon = Number(lonParam);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return NextResponse.json({ error: 'lat and lon must be numbers' }, { status: 400 });
+  }
+
+  const trip = getTrip(tripId);
+  if (!trip) {
+    return NextResponse.json({ error: `Unknown trip id: ${tripId}` }, { status: 404 });
+  }
+
+  return NextResponse.json(await buildEstimate({ lat, lon }, trip));
+}
+
+// The trip planner UI posts a full trip config here — built-in or one the
+// user assembled themselves — since custom trips have no server-side record.
+export async function POST(req: NextRequest) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Request body must be JSON' }, { status: 400 });
+  }
+
+  const { origin, tripId, trip: rawTrip } = body as {
+    origin?: unknown;
+    tripId?: unknown;
+    trip?: unknown;
+  };
+
+  if (!isLatLon(origin)) {
+    return NextResponse.json({ error: 'origin: {lat, lon} is required' }, { status: 400 });
+  }
+
+  let trip: TripConfig | undefined;
+  if (typeof tripId === 'string') {
+    trip = getTrip(tripId);
+    if (!trip) {
+      return NextResponse.json({ error: `Unknown trip id: ${tripId}` }, { status: 404 });
+    }
+  } else if (isValidTripConfig(rawTrip)) {
+    trip = rawTrip;
+  }
+
+  if (!trip) {
+    return NextResponse.json(
+      { error: 'Provide either tripId (a built-in trip) or a full trip object' },
+      { status: 400 },
+    );
+  }
+
+  return NextResponse.json(await buildEstimate(origin, trip));
 }

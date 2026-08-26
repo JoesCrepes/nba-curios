@@ -27,16 +27,22 @@ estimate for the default trip.
 
 - **WMATA**: free key at https://developer.wmata.com — one key covers Rail
   Predictions, Rail Incidents, and Bus Predictions.
-- **Google Maps Platform**: enable the Directions API and billing at
-  https://console.cloud.google.com, used server-side only for routed
-  bicycling directions.
+- **Google Maps Platform**: enable both the **Directions API** (routed
+  bicycling legs) and the **Geocoding API** (resolving a typed address in the
+  trip planner) plus billing at https://console.cloud.google.com. Both are
+  used server-side only, on the same key. If the key returns
+  `REQUEST_DENIED: The provided API key is invalid`, check that the key's
+  **API restrictions** include the APIs above, and that its **application
+  restrictions** aren't set to "HTTP referrers" — that only works for
+  browser calls, and this key is only ever called from the server.
 - **Anthropic**: key at https://console.anthropic.com. The reasoning call
   uses a small/fast model (`claude-haiku-4-5-20251001`) with forced
   structured tool output, so it's one cheap call per estimate.
 
 ## How it works
 
-`GET /api/estimate?lat=<>&lon=<>&trip=<id>`:
+`POST /api/estimate` with `{ origin: {lat, lon}, trip }` (or `{ origin, tripId }`
+for one of the built-in trips in `lib/config.ts`):
 
 1. Fetches, in parallel: rail predictions and incidents for the trip's line,
    optional shuttle-bus predictions, and Google-routed bike legs for the
@@ -51,20 +57,41 @@ estimate for the default trip.
    consumes.
 
 If the LLM call fails, the API falls back to the fastest computed option
-with `confidence: "low"` rather than failing the whole request.
+with `confidence: "low"` rather than failing the whole request. A `GET`
+variant (`?lat=&lon=&trip=<id>`, built-in trips only) still exists for quick
+manual testing.
+
+Two supporting endpoints back the trip planner UI:
+- `GET /api/stations?line=<RD|BL|OR|SV|GR|YL>` — WMATA's live station list
+  for that line (code, name, coordinates), cached in-memory for 24h since it
+  rarely changes.
+- `GET /api/geocode?address=<text>` — resolves a typed address to coordinates
+  via Google Geocoding.
 
 ## Configuring trips
 
-Trips are defined in `lib/config.ts` — not hardcoded to one commute. The
-shipped default (`bcc-commute`) is Dupont Circle → Red Line → Friendship
-Heights or Bethesda → Bethesda-Chevy Chase High School. Add another entry to
-`TRIPS` for a different origin/line/destination; `typicalRailRideMinutes` is
-a static approximation since WMATA's live APIs don't expose scheduled
-in-vehicle travel time between two stations.
+A trip is boarding station → one or more alighting-station options → final
+destination, on one WMATA line — not hardcoded to one commute. Two ways to
+define one:
+
+- **In the UI**: tap "+ New trip", pick a line, pick a boarding station and
+  one or more alighting stations from WMATA's live station list, and type a
+  destination address to geocode. Saved trips live in the browser's
+  `localStorage` (per-device, not synced) and are POSTed to `/api/estimate`
+  as a full trip object — the backend never stores them.
+- **In code**: add an entry to `TRIPS` in `lib/config.ts`, the same shape the
+  planner builds. The shipped default (`bcc-commute`) is Dupont Circle → Red
+  Line → Friendship Heights or Bethesda → Bethesda-Chevy Chase High School.
+  A code-defined trip can also set `typicalRailRideMinutes`, a static
+  approximation of in-vehicle ride time per alighting station — WMATA's live
+  APIs don't expose that, so trips built in the UI default to none and the
+  backend falls back to a flat 15 min estimate; trips in `lib/config.ts` can
+  supply a more accurate number per station pair.
 
 If a rail segment of your trip is currently replaced by a shuttle bus (e.g.
 a station closure), set `shuttleBusStopId` on the trip config — find the
-stop ID on WMATA's bus schedule pages or via the bus predictions API.
+stop ID on WMATA's bus schedule pages or via the bus predictions API. This
+is only available for code-defined trips today, not from the planner UI.
 
 ## What's not done yet (v1 scope, per the architecture doc)
 
@@ -75,5 +102,5 @@ stop ID on WMATA's bus schedule pages or via the bus predictions API.
   too inconsistently to be worth fighting for a bike-commute tool).
 - Native Android app: not started (Section 6) — the backend contract is
   already shaped so that's additive work, not a rewrite.
-- The trip picker is not exposed in the UI yet; only the default trip in
-  `lib/config.ts` is used.
+- Trips built in the planner UI don't support a shuttle-bus stop ID, and
+  aren't shared across devices (they're `localStorage`-only).

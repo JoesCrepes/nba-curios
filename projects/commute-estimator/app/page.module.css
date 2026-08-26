@@ -32,6 +32,34 @@
   cursor: default;
 }
 
+.tripBar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.tripSelect {
+  flex: 1;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.smallLinkButton {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.3rem 0.2rem;
+  white-space: nowrap;
+}
+
 .mapWrap {
   flex: 1;
   min-height: 220px;

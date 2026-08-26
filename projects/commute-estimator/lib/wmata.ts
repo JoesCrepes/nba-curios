@@ -1,4 +1,4 @@
-import type { WmataBusPrediction, WmataIncident, WmataRailPrediction } from './types';
+import type { WmataBusPrediction, WmataIncident, WmataRailPrediction, WmataStation } from './types';
 
 const BASE = 'https://api.wmata.com';
 
@@ -38,6 +38,24 @@ export async function getIncidents(): Promise<WmataIncident[]> {
 /** Filter incidents to the lines this trip actually cares about. */
 export function incidentsForLine(incidents: WmataIncident[], line: string): WmataIncident[] {
   return incidents.filter((i) => i.LinesAffected.split(';').map((s) => s.trim()).includes(line));
+}
+
+// Station list barely ever changes — cache it in-memory for the life of the
+// serverless instance instead of hitting WMATA on every planner keystroke.
+let stationsCache: { fetchedAt: number; stations: WmataStation[] } | null = null;
+const STATIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/** All rail stations, optionally filtered to those served by one line code. */
+export async function getStations(lineCode?: string): Promise<WmataStation[]> {
+  const now = Date.now();
+  if (!stationsCache || now - stationsCache.fetchedAt > STATIONS_CACHE_TTL_MS) {
+    const data = await wmataFetch<{ Stations: WmataStation[] }>('/Rail.svc/json/jStations');
+    stationsCache = { fetchedAt: now, stations: data.Stations };
+  }
+  if (!lineCode) return stationsCache.stations;
+  return stationsCache.stations.filter((s) =>
+    [s.LineCode1, s.LineCode2, s.LineCode3, s.LineCode4].includes(lineCode),
+  );
 }
 
 /** Shuttle-bus ETAs for a given stop ID (used when rail service is replaced by buses). */

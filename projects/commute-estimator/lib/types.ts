@@ -9,6 +9,9 @@ export type Station = {
   location: LatLon;
 };
 
+// Shape returned by GET /api/stations — a Station plus which lines serve it.
+export type RailStation = Station & { lines: string[] };
+
 export type SegmentMode = 'bike' | 'rail' | 'bus' | 'wait';
 
 export type Segment = {
@@ -69,6 +72,17 @@ export type WmataIncident = {
   LinesAffected: string; // e.g. "RD;"
   DateUpdated: string;
   IncidentType: string;
+};
+
+export type WmataStation = {
+  Code: string;
+  Name: string;
+  Lat: number;
+  Lon: number;
+  LineCode1: string | null;
+  LineCode2: string | null;
+  LineCode3: string | null;
+  LineCode4: string | null;
 };
 
 export type WmataBusPrediction = {
