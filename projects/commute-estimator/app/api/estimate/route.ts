@@ -14,6 +14,14 @@ function bestWaitMinutes(minField: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Logs the real error server-side but only ever surfaces a clean,
+// user-facing sentence to the response — raw error text (env var names,
+// upstream status codes) has no business reaching the UI.
+function warn(warnings: string[], userMessage: string, err: unknown): void {
+  console.error(userMessage, err);
+  warnings.push(userMessage);
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const latParam = searchParams.get('lat');
@@ -52,26 +60,26 @@ export async function GET(req: NextRequest) {
 
   if (firstBikeLegResult.status === 'rejected') {
     routingOk = false;
-    warnings.push(`Could not route first bike leg: ${firstBikeLegResult.reason}`);
+    warn(warnings, 'Live bike routing unavailable — distance/time may be inaccurate.', firstBikeLegResult.reason);
   }
   const firstBikeLeg = firstBikeLegResult.status === 'fulfilled' ? firstBikeLegResult.value : null;
 
   const railPredictions = railPredictionsResult.status === 'fulfilled' ? railPredictionsResult.value : [];
   if (railPredictionsResult.status === 'rejected') {
     wmataOk = false;
-    warnings.push(`Could not fetch rail predictions: ${railPredictionsResult.reason}`);
+    warn(warnings, 'Live train predictions unavailable — using a conservative wait estimate.', railPredictionsResult.reason);
   }
 
   const allIncidents: WmataIncident[] = incidentsResult.status === 'fulfilled' ? incidentsResult.value : [];
   if (incidentsResult.status === 'rejected') {
     wmataOk = false;
-    warnings.push(`Could not fetch incidents: ${incidentsResult.reason}`);
+    warn(warnings, 'Live service alerts unavailable.', incidentsResult.reason);
   }
   const lineIncidents = incidentsForLine(allIncidents, trip.line);
 
   const busPredictions = busResult.status === 'fulfilled' ? busResult.value : null;
   if (busResult.status === 'rejected') {
-    warnings.push(`Could not fetch shuttle bus predictions: ${busResult.reason}`);
+    warn(warnings, 'Live shuttle bus predictions unavailable.', busResult.reason);
   }
 
   // Build one candidate segment set per alighting station option.
@@ -80,7 +88,7 @@ export async function GET(req: NextRequest) {
     const bikeLeg = bikeLegResult.status === 'fulfilled' ? bikeLegResult.value : null;
     if (bikeLegResult.status === 'rejected') {
       routingOk = false;
-      warnings.push(`Could not route final bike leg to ${station.name}: ${bikeLegResult.reason}`);
+      warn(warnings, `Live bike routing to ${station.name} unavailable — distance/time may be inaccurate.`, bikeLegResult.reason);
     }
 
     const boardingPredictions = railPredictions.filter(
@@ -151,7 +159,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     llmOk = false;
-    warnings.push(`LLM reasoning unavailable, falling back to fastest option: ${err}`);
+    warn(warnings, 'AI recommendation unavailable — showing the fastest computed option.', err);
     const fastest = [...candidateSegmentSets].sort((a, b) => a.totalMinutes - b.totalMinutes)[0];
     recommendation = {
       chosenOption: fastest.label,
